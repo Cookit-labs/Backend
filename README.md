@@ -444,8 +444,8 @@ Issue tracking for planned backend work:
 
 ## Next Steps
 
-- **Issue #3** — Implement all REST API endpoints (`POST /intents`, `GET /leaderboard`, etc.)
-- **Issue #5** — Wire Redis pub/sub to WebSocket hub
+<!-- - **Issue #3** — Implement all REST API endpoints (`POST /intents`, `GET /leaderboard`, etc.)
+- **Issue #5** — Wire Redis pub/sub to WebSocket hub -->
 - **Issue #6** — Build scoring engine logic
 - **Issue #7** — Execution validation layer
 - **Issue #8** — Circle wallet + USDC settlement
