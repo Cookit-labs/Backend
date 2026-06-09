@@ -79,8 +79,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.66 
-          args: --timeout=5m --out-format=colored-line-number
+          version: v2
 
   build:
     runs-on: ubuntu-latest
