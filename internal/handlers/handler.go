@@ -11,16 +11,17 @@ import (
 )
 
 type Handler struct {
-	db     *db.DB
-	hub    *ws.Hub
-	pubsub *ws.PubSub
+	db  *db.DB
+	hub *ws.Hub
+	// pubsub *ws.PubSub
 }
 
-func New(database *db.DB, wsHub *ws.Hub, redisPubSub *ws.PubSub) *Handler {
+// redisPubSub *ws.PubSub
+func New(database *db.DB, wsHub *ws.Hub) *Handler {
 	return &Handler{
-		db:     database,
-		hub:    wsHub,
-		pubsub: redisPubSub,
+		db:  database,
+		hub: wsHub,
+		// pubsub: redisPubSub,
 	}
 }
 
