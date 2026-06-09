@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -46,6 +47,15 @@ func (h *Handler) SelectWinner(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast winner selection
 	h.hub.Broadcast(intentID, "winner_selected", map[string]any{
+		"proposal_id": winner.ID,
+		"agent_id":    winner.AgentID,
+		"score":       winner.Score,
+	})
+
+	// Publish to Redis pub/sub
+	ctx, cancel := context.WithTimeout(context.Background(), 5*1e9)
+	defer cancel()
+	_ = h.pubsub.Publish(ctx, intentID, "winner_selected", map[string]any{
 		"proposal_id": winner.ID,
 		"agent_id":    winner.AgentID,
 		"score":       winner.Score,
@@ -159,6 +169,16 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast settlement
 	h.hub.Broadcast(intentID, "execution_settled", map[string]any{
+		"execution_id": execution.ID,
+		"agent_id":     execution.WinningAgentID,
+		"slippage":     execution.ActualSlippage,
+		"tx_hash":      execution.TxHash,
+	})
+
+	// Publish to Redis pub/sub
+	ctx, cancel := context.WithTimeout(context.Background(), 5*1e9)
+	defer cancel()
+	_ = h.pubsub.Publish(ctx, intentID, "execution_settled", map[string]any{
 		"execution_id": execution.ID,
 		"agent_id":     execution.WinningAgentID,
 		"slippage":     execution.ActualSlippage,

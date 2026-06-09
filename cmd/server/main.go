@@ -31,7 +31,10 @@ func main() {
 		log.Fatalf("database migration failed: %v", err)
 	}
 
-	srv := server.New(cfg, database)
+	srv, err := server.New(cfg, database)
+	if err != nil {
+		log.Fatalf("server init failed: %v", err)
+	}
 
 	go func() {
 		log.Printf("server listening on :%s", cfg.Port)
