@@ -8,4 +8,8 @@ bin/
 *.sqlite
 *.sqlite3
 *.bak
-*.backup    
+*.backup
+tmp/
+vendor/
+coverage.txt
+.air.toml
