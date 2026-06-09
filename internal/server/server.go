@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/Cookit-labs/Backend/internal/config"
+	"github.com/Cookit-labs/Backend/internal/db"
 	"github.com/Cookit-labs/Backend/internal/ws"
 )
 
@@ -21,14 +22,16 @@ var upgrader = websocket.Upgrader{
 
 type Server struct {
 	cfg    *config.Config
+	db     *db.DB
 	router *chi.Mux
 	hub    *ws.Hub
 	http   *http.Server
 }
 
-func New(cfg *config.Config) *Server {
+func New(cfg *config.Config, database *db.DB) *Server {
 	s := &Server{
 		cfg:  cfg,
+		db:   database,
 		hub:  ws.NewHub(),
 	}
 	s.router = s.buildRouter()
@@ -79,6 +82,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) Hub() *ws.Hub { return s.hub }
 func (s *Server) Router() *chi.Mux { return s.router }
+func (s *Server) DB() *db.DB { return s.db }
 
 func (s *Server) Start() error {
 	return s.http.ListenAndServe()
