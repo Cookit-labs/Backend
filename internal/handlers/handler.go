@@ -11,14 +11,16 @@ import (
 )
 
 type Handler struct {
-	db  *db.DB
-	hub *ws.Hub
+	db     *db.DB
+	hub    *ws.Hub
+	pubsub *ws.PubSub
 }
 
-func New(database *db.DB, wsHub *ws.Hub) *Handler {
+func New(database *db.DB, wsHub *ws.Hub, redisPubSub *ws.PubSub) *Handler {
 	return &Handler{
-		db:  database,
-		hub: wsHub,
+		db:     database,
+		hub:    wsHub,
+		pubsub: redisPubSub,
 	}
 }
 
@@ -39,7 +41,9 @@ func (h *Handler) Mount(r chi.Router) {
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func respondError(w http.ResponseWriter, status int, message string) {
