@@ -3,10 +3,7 @@ run:
   tests: true
 
 output:
-  formats:
-    - name: colored-line-number
-      color: true
-      line-number: true
+  formats: colored-line-number
 
 linters:
   enable:
