@@ -4,7 +4,9 @@ run:
 
 output:
   formats:
-    - format: colored-line-number
+    - name: colored-line-number
+      color: true
+      line-number: true
 
 linters:
   enable:
