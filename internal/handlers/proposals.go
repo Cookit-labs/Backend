@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -51,6 +52,17 @@ func (h *Handler) CreateProposal(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast to WebSocket subscribers
 	h.hub.Broadcast(intentID, "proposal_received", map[string]any{
+		"proposal_id": proposal.ID,
+		"agent_id":    proposal.AgentID,
+		"strategy":    proposal.StrategyType,
+		"slippage":    proposal.ProjectedSlippage,
+		"quality":     proposal.ProjectedExecutionQuality,
+	})
+
+	// Publish to Redis pub/sub (multi-instance broadcast)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*1e9)
+	defer cancel()
+	_ = h.pubsub.Publish(ctx, intentID, "proposal_received", map[string]any{
 		"proposal_id": proposal.ID,
 		"agent_id":    proposal.AgentID,
 		"strategy":    proposal.StrategyType,

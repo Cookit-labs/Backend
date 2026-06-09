@@ -26,14 +26,24 @@ type Server struct {
 	db     *db.DB
 	router *chi.Mux
 	hub    *ws.Hub
+	pubsub *ws.PubSub
 	http   *http.Server
 }
 
-func New(cfg *config.Config, database *db.DB) *Server {
+func New(cfg *config.Config, database *db.DB) (*Server, error) {
+	hub := ws.NewHub()
+
+	// Initialize Redis pub/sub
+	pubsub, err := ws.NewPubSub(cfg.RedisURL, hub)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &Server{
-		cfg:  cfg,
-		db:   database,
-		hub:  ws.NewHub(),
+		cfg:    cfg,
+		db:     database,
+		hub:    hub,
+		pubsub: pubsub,
 	}
 	s.router = s.buildRouter()
 	s.http = &http.Server{
@@ -43,7 +53,7 @@ func New(cfg *config.Config, database *db.DB) *Server {
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	return s
+	return s, nil
 }
 
 func (s *Server) buildRouter() *chi.Mux {
@@ -59,7 +69,7 @@ func (s *Server) buildRouter() *chi.Mux {
 	r.Get("/ws/intents/{intentID}", s.handleWS)
 
 	// API routes
-	h := handlers.New(s.db, s.hub)
+	h := handlers.New(s.db, s.hub, s.pubsub)
 	r.Route("/api/v1", func(r chi.Router) {
 		h.Mount(r)
 	})
@@ -85,11 +95,15 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 func (s *Server) Hub() *ws.Hub { return s.hub }
 func (s *Server) Router() *chi.Mux { return s.router }
 func (s *Server) DB() *db.DB { return s.db }
+func (s *Server) PubSub() *ws.PubSub { return s.pubsub }
 
 func (s *Server) Start() error {
 	return s.http.ListenAndServe()
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	if err := s.pubsub.Close(); err != nil {
+		return err
+	}
 	return s.http.Shutdown(ctx)
 }

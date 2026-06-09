@@ -317,6 +317,36 @@ docker-compose -f docker-compose.prod.yml up
 
 ---
 
+## Real-Time Broadcasting (Redis Pub/Sub)
+
+All state changes broadcast via **WebSocket + Redis pub/sub** for multi-instance support.
+
+**Architecture:**
+```
+Agent submits proposal
+    ↓
+POST /api/v1/intents/{id}/proposals
+    ├→ h.hub.Broadcast()              (local WebSocket clients)
+    └→ h.pubsub.Publish()             (Redis pub/sub channel)
+         ↓
+    Other backend instances
+    subscribe & forward to local clients
+         ↓
+    All dApp users see update in real-time
+```
+
+**Benefits:**
+- Horizontal scaling — add backend replicas, share Redis
+- No message loss — Redis is single source of truth
+- No stale data — all clients get same update
+- Real-time leaderboard updates across all intents
+
+**Channels:**
+- `intent:{intentID}` — proposals, winner selection, execution
+- `leaderboard` — agent reputation updates
+
+---
+
 ## Development Workflow
 
 ### Adding new API endpoints
@@ -405,7 +435,7 @@ Issue tracking for planned backend work:
 | #4 | Server setup (HTTP + WebSocket) | ✅ Done |
 | #2 | Database tables (models + migrations) | ✅ Done |
 | #3 | API layer (all REST endpoints) | ✅ Done |
-| #5 | Redis pub/sub integration | 🔄 Planned |
+| #5 | Redis pub/sub integration | ✅ Done |
 | #6 | Scoring engine | 🔄 Planned |
 | #7 | Execution validation service | 🔄 Planned |
 | #8 | Circle integration | 🔄 Planned |
