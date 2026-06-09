@@ -1,0 +1,11 @@
+bin/
+.env
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.backup    

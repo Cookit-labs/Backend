@@ -11,13 +11,27 @@ import (
 	"time"
 
 	"github.com/Cookit-labs/Backend/internal/config"
+	"github.com/Cookit-labs/Backend/internal/db"
 	"github.com/Cookit-labs/Backend/internal/server"
 )
 
 func main() {
 	cfg := config.Load()
 
-	srv := server.New(cfg)
+	database, err := db.New(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("database init failed: %v", err)
+	}
+
+	if err := database.Health(); err != nil {
+		log.Fatalf("database health check failed: %v", err)
+	}
+
+	if err := database.Migrate(); err != nil {
+		log.Fatalf("database migration failed: %v", err)
+	}
+
+	srv := server.New(cfg, database)
 
 	go func() {
 		log.Printf("server listening on :%s", cfg.Port)
