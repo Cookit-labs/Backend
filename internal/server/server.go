@@ -12,6 +12,7 @@ import (
 
 	"github.com/Cookit-labs/Backend/internal/config"
 	"github.com/Cookit-labs/Backend/internal/db"
+	"github.com/Cookit-labs/Backend/internal/handlers"
 	"github.com/Cookit-labs/Backend/internal/ws"
 )
 
@@ -57,9 +58,10 @@ func (s *Server) buildRouter() *chi.Mux {
 	r.Get("/health", s.handleHealth)
 	r.Get("/ws/intents/{intentID}", s.handleWS)
 
-	// API routes registered here by handler packages
+	// API routes
+	h := handlers.New(s.db, s.hub)
 	r.Route("/api/v1", func(r chi.Router) {
-		// handlers will be mounted here in subsequent issues
+		h.Mount(r)
 	})
 
 	return r

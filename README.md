@@ -242,6 +242,81 @@ make clean        # Remove build artifacts
 
 ---
 
+## CI/CD
+
+GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push and PR:
+
+**Jobs:**
+1. **Test** — `go test -race` with PostgreSQL + Redis services, coverage reported to Codecov
+2. **Lint** — golangci-lint (errcheck, govet, unused, gofmt, goimports, etc.)
+3. **Build** — Static binary compilation (CGO disabled), artifacts retained 5 days
+
+**Docker:**
+Build and run production image:
+```bash
+# Build image
+docker build -t intent-backend:v1 .
+
+# Run with docker-compose (recommended)
+docker-compose -f docker-compose.prod.yml up
+
+# Or run standalone
+docker run -p 8080:8080 \
+  -e DATABASE_URL="postgres://..." \
+  -e REDIS_URL="redis://..." \
+  intent-backend:v1
+```
+
+**Production Setup:**
+- `docker-compose.prod.yml` orchestrates backend + PostgreSQL + Redis
+- `Dockerfile` packages the Go binary (44MB Alpine image)
+- `.env.prod.example` shows required production configuration
+- See [Docker](#docker) section below for details
+
+---
+
+## Docker
+
+### Development (local)
+```bash
+make db-up    # Start postgres + redis only
+make dev      # Run Go server locally with live reload
+```
+
+### Production (containerized)
+```bash
+# Build image
+docker build -t intent-backend:v1 .
+
+# Run orchestrated stack
+docker-compose -f docker-compose.prod.yml up
+```
+
+**docker-compose.prod.yml** provisions:
+- **Backend container** — from Dockerfile
+- **PostgreSQL 16** — persistent volume, health checks
+- **Redis 7** — persistent volume, health checks
+- Auto-restart on crash, ready for systemd/K8s
+
+**Configuration:**
+```bash
+cp .env.prod.example .env.prod
+# Edit .env.prod with:
+# - DATABASE_URL (use sslmode=require in prod)
+# - REDIS_URL
+# - CIRCLE_API_KEY
+docker-compose -f docker-compose.prod.yml up
+```
+
+### Image Details
+- **Base:** Alpine Linux (7MB)
+- **Binary:** Static Go (no CGO, fully portable)
+- **Size:** ~44MB (uncompressed)
+- **Includes:** CA certificates for HTTPS/TLS
+- **Port:** 8080 (configurable)
+
+---
+
 ## Development Workflow
 
 ### Adding new API endpoints
@@ -282,14 +357,41 @@ func (h *Handler) CreateIntent(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### Broadcasting real-time updates
+### API Endpoints
+
+**Intents:**
+- `POST /api/v1/intents` — submit new intent
+- `GET /api/v1/intents/{intentID}` — fetch intent status
+- `GET /api/v1/intents/{intentID}/proposals` — list proposals for intent
+
+**Proposals:**
+- `POST /api/v1/intents/{intentID}/proposals` — agent submits proposal
+- `POST /api/v1/intents/{intentID}/select` — score proposals and select winner
+
+**Execution:**
+- `POST /api/v1/intents/{intentID}/validate` — validate execution against constraints
+- `POST /api/v1/intents/{intentID}/settle` — settle execution and update reputation
+
+**Leaderboard & Agents:**
+- `GET /api/v1/leaderboard` — ranked agent list (score, win rate, slippage)
+- `GET /api/v1/agents/{agentID}` — agent profile + history
+
+### Broadcasting Real-Time Updates
+
+All state changes broadcast via WebSocket to subscribed clients:
 
 ```go
 // When a proposal arrives
 h.hub.Broadcast(intentID, "proposal_received", proposal)
 
-// Frontend receives via WebSocket:
-// { "type": "proposal_received", "payload": {...proposal...} }
+// When a winner is selected
+h.hub.Broadcast(intentID, "winner_selected", winnerData)
+
+// When execution settles
+h.hub.Broadcast(intentID, "execution_settled", executionData)
+
+// Frontend receives:
+// { "type": "proposal_received", "payload": {...} }
 ```
 
 ---
@@ -302,7 +404,7 @@ Issue tracking for planned backend work:
 |-------|-------------|--------|
 | #4 | Server setup (HTTP + WebSocket) | ✅ Done |
 | #2 | Database tables (models + migrations) | ✅ Done |
-| #3 | API layer (all REST endpoints) | 🔄 In progress |
+| #3 | API layer (all REST endpoints) | ✅ Done |
 | #5 | Redis pub/sub integration | 🔄 Planned |
 | #6 | Scoring engine | 🔄 Planned |
 | #7 | Execution validation service | 🔄 Planned |
