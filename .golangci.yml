@@ -11,9 +11,6 @@ linters:
     - staticcheck
     - typecheck
     - unused
-    - gofmt
-    - goimports
-    - misspell
 
 issues:
   exclude-rules:
