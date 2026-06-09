@@ -77,11 +77,10 @@ jobs:
           go-version: '1.26'
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
-          args: --timeout=5m
-          skip-cache: false
+          version: v1.66 
+          args: --timeout=5m --out-format=colored-line-number
 
   build:
     runs-on: ubuntu-latest
