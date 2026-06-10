@@ -7,10 +7,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// leaderboardKey is the special channel key used for global leaderboard subscribers.
+const leaderboardKey = "__leaderboard__"
+
 // Hub manages all active WebSocket connections and broadcasts messages to subscribers.
 type Hub struct {
 	mu      sync.RWMutex
-	clients map[string]map[*Client]struct{} // intentID → set of clients
+	clients map[string]map[*Client]struct{} // channel key → set of clients
 }
 
 type Client struct {
@@ -75,6 +78,16 @@ func (c *Client) writePump() {
 			return
 		}
 	}
+}
+
+// RegisterLeaderboard subscribes a WebSocket connection to global leaderboard updates.
+func (h *Hub) RegisterLeaderboard(conn *websocket.Conn) *Client {
+	return h.Register(leaderboardKey, conn)
+}
+
+// BroadcastLeaderboard sends a message to all leaderboard subscribers.
+func (h *Hub) BroadcastLeaderboard(msgType string, payload any) {
+	h.Broadcast(leaderboardKey, msgType, payload)
 }
 
 // ReadPump blocks, reading from the connection until it closes (ping/close frames).

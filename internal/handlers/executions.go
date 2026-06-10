@@ -9,7 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"gorm.io/gorm"
+
 	"github.com/Cookit-labs/Backend/internal/models"
+	"github.com/Cookit-labs/Backend/internal/scoring"
+	"github.com/Cookit-labs/Backend/internal/validation"
 )
 
 func (h *Handler) SelectWinner(w http.ResponseWriter, r *http.Request) {
@@ -27,19 +31,38 @@ func (h *Handler) SelectWinner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Simple scoring: select highest scored proposal (or first for now)
-	// TODO: Replace with full scoring engine (Issue #6)
-	winner := proposals[0]
-	for _, p := range proposals {
-		if p.Score > winner.Score {
-			winner = p
-		}
+	// Fetch reputation records for all agents in these proposals
+	agentIDs := make([]string, len(proposals))
+	for i, p := range proposals {
+		agentIDs[i] = p.AgentID
+	}
+
+	var reputations []models.AgentReputation
+	h.db.Where("agent_id IN ?", agentIDs).Find(&reputations)
+
+	repMap := make(map[string]*models.AgentReputation, len(reputations))
+	for i := range reputations {
+		repMap[reputations[i].AgentID] = &reputations[i]
+	}
+
+	// Run deterministic scoring engine
+	engine := scoring.New()
+	result := engine.Score(proposals, repMap)
+
+	if result.Winner == nil {
+		respondError(w, http.StatusInternalServerError, "scoring engine returned no winner")
+		return
+	}
+
+	// Persist each proposal's computed score
+	for _, s := range result.AllScores {
+		h.db.Model(&models.Proposal{}).Where("id = ?", s.ProposalID).Update("score", s.Total)
 	}
 
 	// Update intent with selected agent
 	if err := h.db.Model(&models.Intent{}).Where("id = ?", intentID).Updates(map[string]any{
 		"status":            "winner_selected",
-		"selected_agent_id": winner.AgentID,
+		"selected_agent_id": result.Winner.AgentID,
 	}).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to update intent")
 		return
@@ -47,24 +70,33 @@ func (h *Handler) SelectWinner(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast winner selection
 	h.hub.Broadcast(intentID, "winner_selected", map[string]any{
-		"proposal_id": winner.ID,
-		"agent_id":    winner.AgentID,
-		"score":       winner.Score,
+		"proposal_id":              result.Winner.ProposalID,
+		"agent_id":                 result.Winner.AgentID,
+		"score":                    result.Winner.Total,
+		"execution_efficiency":     result.Winner.ExecutionEfficiencyScore,
+		"win_rate_score":           result.Winner.WinRateScore,
+		"slippage_score":           result.Winner.SlippageScore,
+		"reputation_score":         result.Winner.ReputationScore,
 	})
 
 	// Publish to Redis pub/sub
 	ctx, cancel := context.WithTimeout(context.Background(), 5*1e9)
 	defer cancel()
 	_ = h.pubsub.Publish(ctx, intentID, "winner_selected", map[string]any{
-		"proposal_id": winner.ID,
-		"agent_id":    winner.AgentID,
-		"score":       winner.Score,
+		"proposal_id": result.Winner.ProposalID,
+		"agent_id":    result.Winner.AgentID,
+		"score":       result.Winner.Total,
 	})
 
 	respondJSON(w, http.StatusOK, map[string]any{
-		"winner_id": winner.ID,
-		"agent_id":  winner.AgentID,
-		"score":     winner.Score,
+		"winner_proposal_id":       result.Winner.ProposalID,
+		"agent_id":                 result.Winner.AgentID,
+		"total_score":              result.Winner.Total,
+		"execution_efficiency":     result.Winner.ExecutionEfficiencyScore,
+		"win_rate_score":           result.Winner.WinRateScore,
+		"slippage_score":           result.Winner.SlippageScore,
+		"reputation_score":         result.Winner.ReputationScore,
+		"all_scores":               result.AllScores,
 	})
 }
 
@@ -90,22 +122,18 @@ func (h *Handler) ValidateExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validation checks (simplified for now)
-	// TODO: Full validation service (Issue #7)
-	validationErrors := []string{}
+	// Run full validation service
+	svc := validation.New()
+	result := svc.Validate(&intent, &proposal)
 
-	if time.Now().After(intent.Deadline) {
-		validationErrors = append(validationErrors, "intent deadline has passed")
-	}
+	if !result.Valid {
+		// Record failed validation attempt against the agent
+		h.db.Model(&models.Proposal{}).Where("id = ?", req.ProposalID).
+			Update("score", 0)
 
-	if proposal.ProjectedSlippage > intent.MaxSlippage {
-		validationErrors = append(validationErrors, "projected slippage exceeds max tolerance")
-	}
-
-	if len(validationErrors) > 0 {
-		respondJSON(w, http.StatusBadRequest, map[string]any{
+		respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
 			"valid":  false,
-			"errors": validationErrors,
+			"errors": result.Errors,
 		})
 		return
 	}
@@ -138,6 +166,16 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Re-run validation gate before any settlement
+	svc := validation.New()
+	if vr := svc.Validate(&intent, &proposal); !vr.Valid {
+		respondJSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"error":  "settlement blocked: validation failed",
+			"errors": vr.Errors,
+		})
+		return
+	}
+
 	// Create execution record
 	now := time.Now()
 	execution := &models.Execution{
@@ -164,8 +202,28 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update agent stats
-	// TODO: Update reputation (Issue #6, #8)
+	// Pay agent execution fee via Circle if wallets are configured
+	if proposal.AgentID != "" && req.ExecutionFeeUSDC != "" {
+		// Fetch agent's Circle wallet address
+		var agent models.Agent
+		if err := h.db.First(&agent, "id = ?", proposal.AgentID).Error; err == nil && agent.WalletAddress != "" {
+			idempotencyKey := "settle-" + execution.ID
+			feeCtx, feeCancel := context.WithTimeout(context.Background(), 15*1e9)
+			defer feeCancel()
+			// Transfer fee from escrow (intent's wallet) to agent wallet
+			// In V0 we use the agent's WalletAddress as the Circle wallet ID
+			_, _ = h.circle.SendUSDC(feeCtx, idempotencyKey, intent.UserWallet, agent.WalletAddress, req.ExecutionFeeUSDC)
+		}
+	}
+
+	// Update agent win stats and reputation
+	h.db.Model(&models.Agent{}).Where("id = ?", proposal.AgentID).
+		UpdateColumn("total_intents_won", gorm.Expr("total_intents_won + 1"))
+
+	h.db.Model(&models.AgentReputation{}).Where("agent_id = ?", proposal.AgentID).Updates(map[string]any{
+		"total_executions":      gorm.Expr("total_executions + 1"),
+		"consecutive_successes": gorm.Expr("consecutive_successes + 1"),
+	})
 
 	// Broadcast settlement
 	h.hub.Broadcast(intentID, "execution_settled", map[string]any{
