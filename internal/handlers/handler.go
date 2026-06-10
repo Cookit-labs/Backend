@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/Cookit-labs/Backend/internal/circle"
 	"github.com/Cookit-labs/Backend/internal/db"
 	"github.com/Cookit-labs/Backend/internal/ws"
 )
@@ -14,13 +15,15 @@ type Handler struct {
 	db     *db.DB
 	hub    *ws.Hub
 	pubsub *ws.PubSub
+	circle *circle.Client
 }
 
-func New(database *db.DB, wsHub *ws.Hub, redisPubSub *ws.PubSub) *Handler {
+func New(database *db.DB, wsHub *ws.Hub, redisPubSub *ws.PubSub, circleClient *circle.Client) *Handler {
 	return &Handler{
 		db:     database,
 		hub:    wsHub,
 		pubsub: redisPubSub,
+		circle: circleClient,
 	}
 }
 
@@ -34,6 +37,12 @@ func (h *Handler) Mount(r chi.Router) {
 	r.Post("/intents/{intentID}/settle", h.SettleExecution)
 	r.Get("/leaderboard", h.GetLeaderboard)
 	r.Get("/agents/{agentID}", h.GetAgent)
+
+	// Circle wallet + settlement
+	r.Post("/wallets", h.CreateWallet)
+	r.Get("/wallets/{walletID}/balance", h.GetWalletBalance)
+	r.Post("/wallets/transfer", h.TransferUSDC)
+	r.Post("/wallets/cctp", h.CCTPSimulate)
 }
 
 // Utility

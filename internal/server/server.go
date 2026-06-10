@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/websocket"
 
+	"github.com/Cookit-labs/Backend/internal/circle"
 	"github.com/Cookit-labs/Backend/internal/config"
 	"github.com/Cookit-labs/Backend/internal/db"
 	"github.com/Cookit-labs/Backend/internal/handlers"
@@ -27,6 +28,7 @@ type Server struct {
 	router *chi.Mux
 	hub    *ws.Hub
 	pubsub *ws.PubSub
+	circle *circle.Client
 	http   *http.Server
 }
 
@@ -39,11 +41,15 @@ func New(cfg *config.Config, database *db.DB) (*Server, error) {
 		return nil, err
 	}
 
+	sandbox := cfg.Env != "production"
+	circleClient := circle.New(cfg.CircleAPIKey, sandbox)
+
 	s := &Server{
 		cfg:    cfg,
 		db:     database,
 		hub:    hub,
 		pubsub: pubsub,
+		circle: circleClient,
 	}
 	s.router = s.buildRouter()
 	s.http = &http.Server{
@@ -69,7 +75,7 @@ func (s *Server) buildRouter() *chi.Mux {
 	r.Get("/ws/intents/{intentID}", s.handleWS)
 
 	// API routes
-	h := handlers.New(s.db, s.hub, s.pubsub)
+	h := handlers.New(s.db, s.hub, s.pubsub, s.circle)
 	r.Route("/api/v1", func(r chi.Router) {
 		h.Mount(r)
 	})
