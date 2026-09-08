@@ -109,6 +109,11 @@ func (h *Handler) ValidateExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if msg := validateStruct(&req); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
+		return
+	}
+
 	// Fetch intent and proposal
 	var intent models.Intent
 	if err := h.db.First(&intent, "id = ?", intentID).Error; err != nil {
@@ -150,6 +155,11 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 	var req SettleExecutionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if msg := validateStruct(&req); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
 		return
 	}
 

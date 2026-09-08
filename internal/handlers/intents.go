@@ -17,6 +17,11 @@ func (h *Handler) CreateIntent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if msg := validateStruct(&req); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
+		return
+	}
+
 	intent := &models.Intent{
 		ID:          uuid.New().String(),
 		UserWallet:  req.UserWallet,

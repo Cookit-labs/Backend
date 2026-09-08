@@ -33,6 +33,11 @@ type Proposal struct {
 	IntentID                  string         `gorm:"index" json:"intent_id"`
 	AgentID                   string         `gorm:"index" json:"agent_id"`
 	StrategyType              string         `json:"strategy_type"`               // TWAP, Momentum, Shadow
+	// The pair the agent intends to execute. Recorded on the proposal rather
+	// than inferred from the intent, so validation can catch an agent that
+	// proposes a different pair than the one the user asked for.
+	TokenIn                   string         `json:"token_in"`
+	TokenOut                  string         `json:"token_out"`
 	ProjectedSlippage         float64        `json:"projected_slippage"`          // e.g., 0.005 = 0.5%
 	ProjectedExecutionQuality float64        `json:"projected_execution_quality"` // 0-1
 	ProposedAmount            string         `json:"proposed_amount"`

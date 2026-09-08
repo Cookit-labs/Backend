@@ -52,7 +52,10 @@ func (s *Service) Validate(intent *models.Intent, proposal *models.Proposal) Res
 	if !tokenPairMatches(intent, proposal) {
 		errs = append(errs, ValidationError{
 			Field:   "token_pair",
-			Message: fmt.Sprintf("proposal token pair does not match intent (want %s→%s)", intent.TokenIn, intent.TokenOut),
+			Message: fmt.Sprintf(
+				"proposal token pair %s→%s does not match intent %s→%s",
+				proposal.TokenIn, proposal.TokenOut, intent.TokenIn, intent.TokenOut,
+			),
 		})
 	}
 
@@ -106,8 +109,33 @@ func (s *Service) Validate(intent *models.Intent, proposal *models.Proposal) Res
 	}
 }
 
-func tokenPairMatches(intent *models.Intent, _ *models.Proposal) bool {
-	return intent.TokenIn != "" && intent.TokenOut != "" && intent.TokenIn != intent.TokenOut
+// tokenPairMatches reports whether the proposal executes the pair the user
+// actually asked for.
+//
+// This previously ignored the proposal entirely and checked only that the
+// intent's own fields were non-empty and different from each other, which no
+// proposal could ever fail. A proposal swapping an unrelated pair validated
+// clean and went to settlement.
+//
+// Comparison is case-insensitive and trims surrounding space: agents submit
+// symbols as free text, and "usdc" naming the same asset as "USDC" is a
+// formatting difference, not a mismatched pair.
+func tokenPairMatches(intent *models.Intent, proposal *models.Proposal) bool {
+	if intent.TokenIn == "" || intent.TokenOut == "" {
+		return false
+	}
+	// An empty pair on the proposal is a mismatch, not a pass. Treating it as
+	// acceptable would restore the original bug for any agent that simply
+	// omits the fields.
+	if proposal.TokenIn == "" || proposal.TokenOut == "" {
+		return false
+	}
+	return symbolsEqual(intent.TokenIn, proposal.TokenIn) &&
+		symbolsEqual(intent.TokenOut, proposal.TokenOut)
+}
+
+func symbolsEqual(a, b string) bool {
+	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
 }
 
 func venueApproved(venue string) bool {
