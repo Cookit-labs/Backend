@@ -27,6 +27,11 @@ func (h *Handler) CreateProposal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if msg := validateStruct(&req); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
+		return
+	}
+
 	// Verify agent exists
 	var agent models.Agent
 	if err := h.db.First(&agent, "id = ?", req.AgentID).Error; err != nil {
@@ -39,6 +44,8 @@ func (h *Handler) CreateProposal(w http.ResponseWriter, r *http.Request) {
 		IntentID:                  intentID,
 		AgentID:                   req.AgentID,
 		StrategyType:              req.StrategyType,
+		TokenIn:                   req.TokenIn,
+		TokenOut:                  req.TokenOut,
 		ProjectedSlippage:         req.ProjectedSlippage,
 		ProjectedExecutionQuality: req.ProjectedExecutionQuality,
 		ProposedAmount:            req.ProposedAmount,

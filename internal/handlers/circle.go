@@ -27,6 +27,11 @@ func (h *Handler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if msg := validateStruct(&req); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
+		return
+	}
+
 	// Use the user's wallet address as idempotency key so we never double-create
 	idempotencyKey := uuid.NewSHA1(uuid.NameSpaceURL, []byte("wallet:"+req.UserWallet)).String()
 
@@ -68,6 +73,11 @@ func (h *Handler) TransferUSDC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if msg := validateStruct(&req); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
+		return
+	}
+
 	idempotencyKey := uuid.New().String()
 
 	transfer, err := h.circleClient().SendUSDC(r.Context(), idempotencyKey, req.FromWalletID, req.ToWalletID, req.Amount)
@@ -84,6 +94,11 @@ func (h *Handler) CCTPSimulate(w http.ResponseWriter, r *http.Request) {
 	var req circle.CCTPBurnRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if msg := validateStruct(&req); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
 		return
 	}
 

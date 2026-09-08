@@ -36,7 +36,10 @@ func (h *Handler) Mount(r chi.Router) {
 	r.Post("/intents/{intentID}/validate", h.ValidateExecution)
 	r.Post("/intents/{intentID}/settle", h.SettleExecution)
 	r.Get("/leaderboard", h.GetLeaderboard)
+	r.Post("/agents", h.CreateAgent)
+	r.Get("/agents", h.ListAgents)
 	r.Get("/agents/{agentID}", h.GetAgent)
+	r.Patch("/agents/{agentID}/status", h.UpdateAgentStatus)
 
 	// Circle wallet + settlement
 	r.Post("/wallets", h.CreateWallet)

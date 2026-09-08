@@ -5,6 +5,10 @@ import "time"
 // Intent requests/responses
 
 type CreateIntentRequest struct {
+	// Optional: omitting it defaults to Arc, so clients written before
+	// multi-chain keep working. The wallet is validated against whichever
+	// chain applies.
+	Chain       string    `json:"chain,omitempty" validate:"omitempty,oneof=arc stellar"`
 	UserWallet  string    `json:"user_wallet" validate:"required"`
 	TokenIn     string    `json:"token_in" validate:"required"`
 	TokenOut    string    `json:"token_out" validate:"required"`
@@ -16,6 +20,7 @@ type CreateIntentRequest struct {
 
 type IntentResponse struct {
 	ID              string    `json:"id"`
+	Chain           string    `json:"chain"`
 	UserWallet      string    `json:"user_wallet"`
 	TokenIn         string    `json:"token_in"`
 	TokenOut        string    `json:"token_out"`
@@ -31,10 +36,16 @@ type IntentResponse struct {
 // Proposal requests/responses
 
 type CreateProposalRequest struct {
-	AgentID                   string  `json:"agent_id" validate:"required"`
-	StrategyType              string  `json:"strategy_type" validate:"required"`
-	ProjectedSlippage         float64 `json:"projected_slippage" validate:"required,gte=0"`
-	ProjectedExecutionQuality float64 `json:"projected_execution_quality" validate:"required,gte=0,lte=1"`
+	AgentID      string `json:"agent_id" validate:"required"`
+	StrategyType string `json:"strategy_type" validate:"required"`
+	// The pair the agent will execute. Validated against the intent before
+	// settlement; omitting it is a validation failure, not a default.
+	TokenIn  string `json:"token_in" validate:"required"`
+	TokenOut string `json:"token_out" validate:"required"`
+	// gte=0 rather than required: required rejects the zero value, and zero
+	// projected slippage is a legitimate claim.
+	ProjectedSlippage         float64 `json:"projected_slippage" validate:"gte=0,lte=1"`
+	ProjectedExecutionQuality float64 `json:"projected_execution_quality" validate:"gte=0,lte=1"`
 	ProposedAmount            string  `json:"proposed_amount" validate:"required"`
 	ExecutionPath             string  `json:"execution_path" validate:"required"`
 }
@@ -72,6 +83,7 @@ type LeaderboardEntry struct {
 	TotalIntentsWon      int64   `json:"total_intents_won"`
 	WinRate              float64 `json:"win_rate"`
 	AvgSlippageDelivered float64 `json:"avg_slippage_delivered"`
+	AvgSlippageDelta     float64 `json:"avg_slippage_delta"`
 	CompositeScore       float64 `json:"composite_score"`
 }
 
@@ -85,4 +97,30 @@ type LeaderboardResponse struct {
 type ErrorResponse struct {
 	Error  string `json:"error"`
 	Status int    `json:"status"`
+}
+
+// Agent requests
+
+// CreateAgentRequest registers an agent so it can submit proposals.
+//
+// Agents were previously read-only: proposals require an existing agent row,
+// but nothing could create one, so a fresh database could not accept a single
+// proposal.
+type CreateAgentRequest struct {
+	Name string `json:"name" validate:"required"`
+	// Constrained to the strategies the scoring engine and the dApp both know
+	// about. A free-text value would be accepted here and then silently fail to
+	// match anything downstream.
+	StrategyType  string `json:"strategy_type" validate:"required,oneof=twap momentum shadow arbitrage custom"`
+	Description   string `json:"description"`
+	WalletAddress string `json:"wallet_address" validate:"required"`
+}
+
+// UpdateAgentStatusRequest activates or deactivates an agent.
+//
+// Uses a pointer so that `false` is distinguishable from an omitted field —
+// with a plain bool, "deactivate this agent" and "do not change the status"
+// are the same JSON.
+type UpdateAgentStatusRequest struct {
+	IsActive *bool `json:"is_active" validate:"required"`
 }
