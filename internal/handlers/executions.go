@@ -193,7 +193,12 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 		IntentID:         intentID,
 		WinningAgentID:   proposal.AgentID,
 		ProposalID:       req.ProposalID,
+		// Recorded together so reputation can distinguish an agent that
+		// promises 0.1% and delivers it from one that promises 0.1% and
+		// delivers 2%. Without the projection, both look identical.
+		ProjectedSlippage: proposal.ProjectedSlippage,
 		ActualSlippage:   req.ActualSlippage,
+		SlippageDelta:    req.ActualSlippage - proposal.ProjectedSlippage,
 		TxHash:           req.TxHash,
 		SettlementStatus: "confirmed",
 		ExecutionFeeUSDC: req.ExecutionFeeUSDC,
@@ -230,7 +235,19 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 	h.db.Model(&models.Agent{}).Where("id = ?", proposal.AgentID).
 		UpdateColumn("total_intents_won", gorm.Expr("total_intents_won + 1"))
 
+	// Running means, computed in SQL against the pre-increment count so a
+	// concurrent settlement cannot read a stale average and overwrite it.
+	// AvgSlippageDelivered was declared but never written, so the leaderboard
+	// has been showing zero for every agent.
 	h.db.Model(&models.AgentReputation{}).Where("agent_id = ?", proposal.AgentID).Updates(map[string]any{
+		"avg_slippage_delivered": gorm.Expr(
+			"(avg_slippage_delivered * total_executions + ?) / (total_executions + 1)",
+			execution.ActualSlippage,
+		),
+		"avg_slippage_delta": gorm.Expr(
+			"(avg_slippage_delta * total_executions + ?) / (total_executions + 1)",
+			execution.SlippageDelta,
+		),
 		"total_executions":      gorm.Expr("total_executions + 1"),
 		"consecutive_successes": gorm.Expr("consecutive_successes + 1"),
 	})
@@ -240,6 +257,8 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 		"execution_id": execution.ID,
 		"agent_id":     execution.WinningAgentID,
 		"slippage":     execution.ActualSlippage,
+		"projected":    execution.ProjectedSlippage,
+		"delta":        execution.SlippageDelta,
 		"tx_hash":      execution.TxHash,
 	})
 
@@ -250,6 +269,8 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 		"execution_id": execution.ID,
 		"agent_id":     execution.WinningAgentID,
 		"slippage":     execution.ActualSlippage,
+		"projected":    execution.ProjectedSlippage,
+		"delta":        execution.SlippageDelta,
 		"tx_hash":      execution.TxHash,
 	})
 

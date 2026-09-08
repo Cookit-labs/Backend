@@ -62,7 +62,15 @@ type Execution struct {
 	WinningAgentID   string         `gorm:"index" json:"winning_agent_id"`
 	ProposalID       string         `json:"proposal_id"`
 	ExecutedAmount   string         `json:"executed_amount"`
+	// What the winning agent promised, copied from the proposal at settlement.
+	// Kept on the execution rather than read back through the proposal so the
+	// comparison survives the proposal being edited or soft-deleted.
+	ProjectedSlippage float64       `json:"projected_slippage"`
 	ActualSlippage   float64        `json:"actual_slippage"`
+	// Actual minus projected. Positive means the agent delivered worse than it
+	// promised. Stored rather than computed on read so it can be aggregated and
+	// indexed without recomputing across every execution.
+	SlippageDelta    float64        `gorm:"index" json:"slippage_delta"`
 	TxHash           string         `json:"tx_hash"`
 	SettlementStatus string         `json:"settlement_status"`  // pending, confirmed, failed
 	ExecutionFeeUSDC string         `json:"execution_fee_usdc"` // agent fee
@@ -104,6 +112,11 @@ type AgentReputation struct {
 	AgentID                string         `gorm:"uniqueIndex" json:"agent_id"`
 	WinRate                float64        `json:"win_rate"` // wins / total_proposals
 	AvgSlippageDelivered   float64        `json:"avg_slippage_delivered"`
+	// Mean of (actual - projected) across settled executions. Positive means
+	// the agent habitually delivers worse than it promises, which win rate and
+	// average slippage alone cannot reveal — an agent can win often, on
+	// optimistic projections it never meets.
+	AvgSlippageDelta       float64        `json:"avg_slippage_delta"`
 	TotalExecutions        int64          `json:"total_executions"`
 	ConsecutiveSuccesses   int64          `json:"consecutive_successes"`
 	CompositeScore         float64        `json:"composite_score"`           // weighted avg of metrics

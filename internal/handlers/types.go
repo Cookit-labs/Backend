@@ -83,6 +83,7 @@ type LeaderboardEntry struct {
 	TotalIntentsWon      int64   `json:"total_intents_won"`
 	WinRate              float64 `json:"win_rate"`
 	AvgSlippageDelivered float64 `json:"avg_slippage_delivered"`
+	AvgSlippageDelta     float64 `json:"avg_slippage_delta"`
 	CompositeScore       float64 `json:"composite_score"`
 }
 

@@ -58,6 +58,9 @@ func (h *Handler) CreateAgent(w http.ResponseWriter, r *http.Request) {
 	// leaderboard — which skips agents with no reputation row — shows a new
 	// agent immediately instead of hiding it until its first settlement.
 	reputation := &models.AgentReputation{
+		// The primary key has no database-side default, so omitting it inserts
+		// an empty string and the second agent collides with the first.
+		ID:      uuid.New().String(),
 		AgentID: agent.ID,
 	}
 	if err := h.db.Create(reputation).Error; err != nil {
@@ -144,6 +147,7 @@ func (h *Handler) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 			TotalIntentsWon:      agent.TotalIntentsWon,
 			WinRate:              agent.Reputation.WinRate,
 			AvgSlippageDelivered: agent.Reputation.AvgSlippageDelivered,
+			AvgSlippageDelta:     agent.Reputation.AvgSlippageDelta,
 			CompositeScore:       agent.Reputation.CompositeScore,
 		}
 		entries = append(entries, entry)
@@ -185,6 +189,10 @@ func (h *Handler) GetAgent(w http.ResponseWriter, r *http.Request) {
 		"total_executions":    totalExecutions,
 		"win_rate":            rep.WinRate,
 		"avg_slippage":        rep.AvgSlippageDelivered,
+		// Positive means the agent habitually delivers worse than it promises.
+		// Exposed alongside win rate because an agent can win often on
+		// optimistic projections it never meets.
+		"avg_slippage_delta":  rep.AvgSlippageDelta,
 		"composite_score":     rep.CompositeScore,
 		"on_chain_score":      rep.OnChainReputationScore,
 		"consecutive_success": rep.ConsecutiveSuccesses,
