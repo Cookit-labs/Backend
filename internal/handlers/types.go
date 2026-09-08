@@ -5,6 +5,10 @@ import "time"
 // Intent requests/responses
 
 type CreateIntentRequest struct {
+	// Optional: omitting it defaults to Arc, so clients written before
+	// multi-chain keep working. The wallet is validated against whichever
+	// chain applies.
+	Chain       string    `json:"chain,omitempty" validate:"omitempty,oneof=arc stellar"`
 	UserWallet  string    `json:"user_wallet" validate:"required"`
 	TokenIn     string    `json:"token_in" validate:"required"`
 	TokenOut    string    `json:"token_out" validate:"required"`
@@ -16,6 +20,7 @@ type CreateIntentRequest struct {
 
 type IntentResponse struct {
 	ID              string    `json:"id"`
+	Chain           string    `json:"chain"`
 	UserWallet      string    `json:"user_wallet"`
 	TokenIn         string    `json:"token_in"`
 	TokenOut        string    `json:"token_out"`

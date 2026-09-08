@@ -9,6 +9,9 @@ import (
 // Intent represents a user's trading intention
 type Intent struct {
 	ID              string         `gorm:"primaryKey" json:"id"`
+	// Which network this intent settles on. Indexed because settlement and the
+	// orchestrator both filter by it.
+	Chain           string         `gorm:"index;default:arc" json:"chain"`
 	UserWallet      string         `gorm:"index" json:"user_wallet"`
 	TokenIn         string         `json:"token_in"`
 	TokenOut        string         `json:"token_out"`
