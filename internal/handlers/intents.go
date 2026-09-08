@@ -63,7 +63,7 @@ func (h *Handler) CreateIntent(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusCreated, IntentResponse{
 		ID:          intent.ID,
-		Chain:           intent.Chain,
+		Chain:       intent.Chain,
 		UserWallet:  intent.UserWallet,
 		TokenIn:     intent.TokenIn,
 		TokenOut:    intent.TokenOut,

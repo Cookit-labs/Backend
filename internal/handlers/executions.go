@@ -70,13 +70,13 @@ func (h *Handler) SelectWinner(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast winner selection
 	h.hub.Broadcast(intentID, "winner_selected", map[string]any{
-		"proposal_id":              result.Winner.ProposalID,
-		"agent_id":                 result.Winner.AgentID,
-		"score":                    result.Winner.Total,
-		"execution_efficiency":     result.Winner.ExecutionEfficiencyScore,
-		"win_rate_score":           result.Winner.WinRateScore,
-		"slippage_score":           result.Winner.SlippageScore,
-		"reputation_score":         result.Winner.ReputationScore,
+		"proposal_id":          result.Winner.ProposalID,
+		"agent_id":             result.Winner.AgentID,
+		"score":                result.Winner.Total,
+		"execution_efficiency": result.Winner.ExecutionEfficiencyScore,
+		"win_rate_score":       result.Winner.WinRateScore,
+		"slippage_score":       result.Winner.SlippageScore,
+		"reputation_score":     result.Winner.ReputationScore,
 	})
 
 	// Publish to Redis pub/sub
@@ -89,14 +89,14 @@ func (h *Handler) SelectWinner(w http.ResponseWriter, r *http.Request) {
 	})
 
 	respondJSON(w, http.StatusOK, map[string]any{
-		"winner_proposal_id":       result.Winner.ProposalID,
-		"agent_id":                 result.Winner.AgentID,
-		"total_score":              result.Winner.Total,
-		"execution_efficiency":     result.Winner.ExecutionEfficiencyScore,
-		"win_rate_score":           result.Winner.WinRateScore,
-		"slippage_score":           result.Winner.SlippageScore,
-		"reputation_score":         result.Winner.ReputationScore,
-		"all_scores":               result.AllScores,
+		"winner_proposal_id":   result.Winner.ProposalID,
+		"agent_id":             result.Winner.AgentID,
+		"total_score":          result.Winner.Total,
+		"execution_efficiency": result.Winner.ExecutionEfficiencyScore,
+		"win_rate_score":       result.Winner.WinRateScore,
+		"slippage_score":       result.Winner.SlippageScore,
+		"reputation_score":     result.Winner.ReputationScore,
+		"all_scores":           result.AllScores,
 	})
 }
 
@@ -189,21 +189,21 @@ func (h *Handler) SettleExecution(w http.ResponseWriter, r *http.Request) {
 	// Create execution record
 	now := time.Now()
 	execution := &models.Execution{
-		ID:               uuid.New().String(),
-		IntentID:         intentID,
-		WinningAgentID:   proposal.AgentID,
-		ProposalID:       req.ProposalID,
+		ID:             uuid.New().String(),
+		IntentID:       intentID,
+		WinningAgentID: proposal.AgentID,
+		ProposalID:     req.ProposalID,
 		// Recorded together so reputation can distinguish an agent that
 		// promises 0.1% and delivers it from one that promises 0.1% and
 		// delivers 2%. Without the projection, both look identical.
 		ProjectedSlippage: proposal.ProjectedSlippage,
-		ActualSlippage:   req.ActualSlippage,
-		SlippageDelta:    req.ActualSlippage - proposal.ProjectedSlippage,
-		TxHash:           req.TxHash,
-		SettlementStatus: "confirmed",
-		ExecutionFeeUSDC: req.ExecutionFeeUSDC,
-		ExecutedAt:       now,
-		SettledAt:        &now,
+		ActualSlippage:    req.ActualSlippage,
+		SlippageDelta:     req.ActualSlippage - proposal.ProjectedSlippage,
+		TxHash:            req.TxHash,
+		SettlementStatus:  "confirmed",
+		ExecutionFeeUSDC:  req.ExecutionFeeUSDC,
+		ExecutedAt:        now,
+		SettledAt:         &now,
 	}
 
 	if err := h.db.Create(execution).Error; err != nil {

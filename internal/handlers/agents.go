@@ -178,17 +178,17 @@ func (h *Handler) GetAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"id":                  agent.ID,
-		"name":                agent.Name,
-		"strategy_type":       agent.StrategyType,
-		"description":         agent.Description,
-		"is_active":           agent.IsActive,
-		"wallet_address":      agent.WalletAddress,
-		"total_intents_won":   agent.TotalIntentsWon,
-		"total_capital_usdc":  agent.TotalCapitalUsdc,
-		"total_executions":    totalExecutions,
-		"win_rate":            rep.WinRate,
-		"avg_slippage":        rep.AvgSlippageDelivered,
+		"id":                 agent.ID,
+		"name":               agent.Name,
+		"strategy_type":      agent.StrategyType,
+		"description":        agent.Description,
+		"is_active":          agent.IsActive,
+		"wallet_address":     agent.WalletAddress,
+		"total_intents_won":  agent.TotalIntentsWon,
+		"total_capital_usdc": agent.TotalCapitalUsdc,
+		"total_executions":   totalExecutions,
+		"win_rate":           rep.WinRate,
+		"avg_slippage":       rep.AvgSlippageDelivered,
 		// Positive means the agent habitually delivers worse than it promises.
 		// Exposed alongside win rate because an agent can win often on
 		// optimistic projections it never meets.

@@ -36,12 +36,12 @@ type IntentResponse struct {
 // Proposal requests/responses
 
 type CreateProposalRequest struct {
-	AgentID                   string  `json:"agent_id" validate:"required"`
-	StrategyType              string  `json:"strategy_type" validate:"required"`
+	AgentID      string `json:"agent_id" validate:"required"`
+	StrategyType string `json:"strategy_type" validate:"required"`
 	// The pair the agent will execute. Validated against the intent before
 	// settlement; omitting it is a validation failure, not a default.
-	TokenIn                   string  `json:"token_in" validate:"required"`
-	TokenOut                  string  `json:"token_out" validate:"required"`
+	TokenIn  string `json:"token_in" validate:"required"`
+	TokenOut string `json:"token_out" validate:"required"`
 	// gte=0 rather than required: required rejects the zero value, and zero
 	// projected slippage is a legitimate claim.
 	ProjectedSlippage         float64 `json:"projected_slippage" validate:"gte=0,lte=1"`

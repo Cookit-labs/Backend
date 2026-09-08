@@ -1,8 +1,8 @@
 package validation
 
 import (
-	"slices"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -51,7 +51,7 @@ func (s *Service) Validate(intent *models.Intent, proposal *models.Proposal) Res
 	// 1. Token pair matches
 	if !tokenPairMatches(intent, proposal) {
 		errs = append(errs, ValidationError{
-			Field:   "token_pair",
+			Field: "token_pair",
 			Message: fmt.Sprintf(
 				"proposal token pair %s→%s does not match intent %s→%s",
 				proposal.TokenIn, proposal.TokenOut, intent.TokenIn, intent.TokenOut,

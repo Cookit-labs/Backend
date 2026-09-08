@@ -8,7 +8,7 @@ import (
 
 // Intent represents a user's trading intention
 type Intent struct {
-	ID              string         `gorm:"primaryKey" json:"id"`
+	ID string `gorm:"primaryKey" json:"id"`
 	// Which network this intent settles on. Indexed because settlement and the
 	// orchestrator both filter by it.
 	Chain           string         `gorm:"index;default:arc" json:"chain"`
@@ -32,10 +32,10 @@ type Intent struct {
 
 // Proposal represents an agent's bid to execute an intent
 type Proposal struct {
-	ID                        string         `gorm:"primaryKey" json:"id"`
-	IntentID                  string         `gorm:"index" json:"intent_id"`
-	AgentID                   string         `gorm:"index" json:"agent_id"`
-	StrategyType              string         `json:"strategy_type"`               // TWAP, Momentum, Shadow
+	ID           string `gorm:"primaryKey" json:"id"`
+	IntentID     string `gorm:"index" json:"intent_id"`
+	AgentID      string `gorm:"index" json:"agent_id"`
+	StrategyType string `json:"strategy_type"` // TWAP, Momentum, Shadow
 	// The pair the agent intends to execute. Recorded on the proposal rather
 	// than inferred from the intent, so validation can catch an agent that
 	// proposes a different pair than the one the user asked for.
@@ -57,16 +57,16 @@ type Proposal struct {
 
 // Execution represents the settled outcome of an intent
 type Execution struct {
-	ID               string         `gorm:"primaryKey" json:"id"`
-	IntentID         string         `gorm:"uniqueIndex" json:"intent_id"`
-	WinningAgentID   string         `gorm:"index" json:"winning_agent_id"`
-	ProposalID       string         `json:"proposal_id"`
-	ExecutedAmount   string         `json:"executed_amount"`
+	ID             string `gorm:"primaryKey" json:"id"`
+	IntentID       string `gorm:"uniqueIndex" json:"intent_id"`
+	WinningAgentID string `gorm:"index" json:"winning_agent_id"`
+	ProposalID     string `json:"proposal_id"`
+	ExecutedAmount string `json:"executed_amount"`
 	// What the winning agent promised, copied from the proposal at settlement.
 	// Kept on the execution rather than read back through the proposal so the
 	// comparison survives the proposal being edited or soft-deleted.
-	ProjectedSlippage float64       `json:"projected_slippage"`
-	ActualSlippage   float64        `json:"actual_slippage"`
+	ProjectedSlippage float64 `json:"projected_slippage"`
+	ActualSlippage    float64 `json:"actual_slippage"`
 	// Actual minus projected. Positive means the agent delivered worse than it
 	// promised. Stored rather than computed on read so it can be aggregated and
 	// indexed without recomputing across every execution.
@@ -108,10 +108,10 @@ type Agent struct {
 
 // AgentReputation tracks agent performance metrics on-chain seed values
 type AgentReputation struct {
-	ID                     string         `gorm:"primaryKey" json:"id"`
-	AgentID                string         `gorm:"uniqueIndex" json:"agent_id"`
-	WinRate                float64        `json:"win_rate"` // wins / total_proposals
-	AvgSlippageDelivered   float64        `json:"avg_slippage_delivered"`
+	ID                   string  `gorm:"primaryKey" json:"id"`
+	AgentID              string  `gorm:"uniqueIndex" json:"agent_id"`
+	WinRate              float64 `json:"win_rate"` // wins / total_proposals
+	AvgSlippageDelivered float64 `json:"avg_slippage_delivered"`
 	// Mean of (actual - projected) across settled executions. Positive means
 	// the agent habitually delivers worse than it promises, which win rate and
 	// average slippage alone cannot reveal — an agent can win often, on
