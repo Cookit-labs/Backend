@@ -97,3 +97,48 @@ func TestToSnakeKeepsAcronymsIntact(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateAgentRequestRequiresIdentity(t *testing.T) {
+	msg := validateStruct(&CreateAgentRequest{})
+	if msg == "" {
+		t.Fatal("expected an empty agent to be rejected")
+	}
+	for _, field := range []string{"name", "strategy_type", "wallet_address"} {
+		if !strings.Contains(msg, field) {
+			t.Errorf("expected %q to be reported, got: %s", field, msg)
+		}
+	}
+}
+
+func TestCreateAgentRequestRejectsUnknownStrategy(t *testing.T) {
+	// A free-text strategy would be stored and then match nothing downstream.
+	req := CreateAgentRequest{
+		Name:          "Rogue",
+		StrategyType:  "not_a_strategy",
+		WalletAddress: "0xabc",
+	}
+	if msg := validateStruct(&req); msg == "" {
+		t.Fatal("expected an unknown strategy to be rejected")
+	}
+}
+
+func TestCreateAgentRequestAcceptsKnownStrategies(t *testing.T) {
+	for _, s := range []string{"twap", "momentum", "shadow", "arbitrage", "custom"} {
+		req := CreateAgentRequest{Name: "A", StrategyType: s, WalletAddress: "0xabc"}
+		if msg := validateStruct(&req); msg != "" {
+			t.Errorf("expected %q to be accepted, got: %s", s, msg)
+		}
+	}
+}
+
+func TestUpdateAgentStatusDistinguishesFalseFromOmitted(t *testing.T) {
+	// The reason IsActive is a pointer: with a plain bool, "deactivate" and
+	// "leave unchanged" arrive as the same JSON.
+	deactivate := false
+	if msg := validateStruct(&UpdateAgentStatusRequest{IsActive: &deactivate}); msg != "" {
+		t.Fatalf("expected an explicit false to be accepted, got: %s", msg)
+	}
+	if msg := validateStruct(&UpdateAgentStatusRequest{}); msg == "" {
+		t.Fatal("expected an omitted is_active to be rejected")
+	}
+}

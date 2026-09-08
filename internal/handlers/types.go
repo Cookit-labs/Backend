@@ -92,3 +92,29 @@ type ErrorResponse struct {
 	Error  string `json:"error"`
 	Status int    `json:"status"`
 }
+
+// Agent requests
+
+// CreateAgentRequest registers an agent so it can submit proposals.
+//
+// Agents were previously read-only: proposals require an existing agent row,
+// but nothing could create one, so a fresh database could not accept a single
+// proposal.
+type CreateAgentRequest struct {
+	Name string `json:"name" validate:"required"`
+	// Constrained to the strategies the scoring engine and the dApp both know
+	// about. A free-text value would be accepted here and then silently fail to
+	// match anything downstream.
+	StrategyType  string `json:"strategy_type" validate:"required,oneof=twap momentum shadow arbitrage custom"`
+	Description   string `json:"description"`
+	WalletAddress string `json:"wallet_address" validate:"required"`
+}
+
+// UpdateAgentStatusRequest activates or deactivates an agent.
+//
+// Uses a pointer so that `false` is distinguishable from an omitted field —
+// with a plain bool, "deactivate this agent" and "do not change the status"
+// are the same JSON.
+type UpdateAgentStatusRequest struct {
+	IsActive *bool `json:"is_active" validate:"required"`
+}
